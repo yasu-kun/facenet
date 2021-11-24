@@ -67,7 +67,8 @@ def main():
             # nrof_images = len(args.image_files)
 
             facemask_model = load_model("./models/mask_detector.model")
-            cap = cv2.VideoCapture(0)
+            cap = cv2.VideoCapture('../data/movies/no_glass.mp4')
+            #cap = cv2.VideoCapture(0)
             while True:
                 #今のフレームと保存されている画像たちとの類似度行列を作る．
                 #閾値より近い距離にあれば，その人の顔とする．
