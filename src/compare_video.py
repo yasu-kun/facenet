@@ -79,20 +79,36 @@ def main():
                 
                 # images = get_face_img(frame, 160, 32, facemask_model)
                 try:
-                    images = get_face_img(frame, 160, 32, facemask_model)
+                    images_list,box_list = get_face_img(frame, 160, 32, facemask_model)
+                    
                 except:
                     continue
                 # Run forward pass to calculate embeddings
-                feed_dict = { images_placeholder: images, phase_train_placeholder:False }
-                emb = sess.run(embeddings, feed_dict=feed_dict)
+                # feed_dict = { images_placeholder: images, phase_train_placeholder:False }
+                # emb = sess.run(embeddings, feed_dict=feed_dict)
                 
-                detect_name = face_matching(emb)
+                # detect_name = face_matching(emb)
 
                 fps = cv2.getTickFrequency() / (cv2.getTickCount() - tick)
+
+                for num,images in enumerate(images_list):
+                    feed_dict = { images_placeholder: images, phase_train_placeholder:False }
+                    emb = sess.run(embeddings, feed_dict=feed_dict)
+                    detect_name = face_matching(emb)
+                    # cv2.FONT_HERSHEY_PLAIN
+
+                    cv2.putText(frame,detect_name,
+                                (int(box_list[num][0]+30), int(box_list[num][1])-30),cv2.FONT_HERSHEY_TRIPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+                    box_list = [[int(i) for i in box_list[num]]]
+                    #print(box_list)
+                    #print((box_list[num][0],box_list[num][2]))
+                    cv2.rectangle(frame,(box_list[num][0],box_list[num][1]),(box_list[num][2],box_list[num][3]),(0,255,0),thickness=2)
+
+                
                 cv2.putText(frame, "FPS:{} ".format(int(fps)),
                             (10, 50), cv2.FONT_HERSHEY_PLAIN, 3, (255, 255, 255), 2, cv2.LINE_AA)
-                cv2.putText(frame,detect_name,
-                            (10, 90), cv2.FONT_HERSHEY_PLAIN, 3, (255, 255, 255), 2, cv2.LINE_AA)
+                # cv2.putText(frame,detect_name,
+                #             (10, 90), cv2.FONT_HERSHEY_PLAIN, 3, (255, 255, 255), 2, cv2.LINE_AA)
                 cv2.imshow('cap', frame)
 
                 if cv2.waitKey(1) == ord('q'):
@@ -130,7 +146,6 @@ def face_matching(emb):
         name = row[1]
         data = np.array(eval(row[2]))
         dis = np.sqrt(np.sum(np.square(np.subtract(data, emb[0,:]))))
-        print(dis)
         if dis < 0.7:
             cur.close()
             conn.close()
@@ -141,22 +156,45 @@ def face_matching(emb):
     return 'unknown'
 
 
+# def get_face_img(frame, image_size, margin, model):
+#     img_list = []
+#     img = frame
+#     img_size = np.asarray(img.shape)[0:2]
+#     det = detect_mask.mask_image(img, model)
+#     bb = np.zeros(4, dtype=np.int32)
+#     bb[0] = np.maximum(det[0]-margin/2, 0)
+#     bb[1] = np.maximum(det[1]-margin/2, 0)
+#     bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+#     bb[3] = np.minimum(det[3]+margin/2, img_size[0])
+#     cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
+#     aligned = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
+#     prewhitened = facenet.prewhiten(aligned)
+#     img_list.append(prewhitened)
+#     images = np.stack(img_list)
+#     return images
+
+
 def get_face_img(frame, image_size, margin, model):
     img_list = []
     img = frame
     img_size = np.asarray(img.shape)[0:2]
-    det = detect_mask.mask_image(img, model)
-    bb = np.zeros(4, dtype=np.int32)
-    bb[0] = np.maximum(det[0]-margin/2, 0)
-    bb[1] = np.maximum(det[1]-margin/2, 0)
-    bb[2] = np.minimum(det[2]+margin/2, img_size[1])
-    bb[3] = np.minimum(det[3]+margin/2, img_size[0])
-    cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
-    aligned = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
-    prewhitened = facenet.prewhiten(aligned)
-    img_list.append(prewhitened)
-    images = np.stack(img_list)
-    return images
+    box_list = detect_mask.mask_image(img, model)
+    images_list = []
+    for det in box_list:
+        bb = np.zeros(4, dtype=np.int32)
+        bb[0] = np.maximum(det[0]-margin/2, 0)
+        bb[1] = np.maximum(det[1]-margin/2, 0)
+        bb[2] = np.minimum(det[2]+margin/2, img_size[1])
+        bb[3] = np.minimum(det[3]+margin/2, img_size[0])
+        cropped = img[bb[1]:bb[3],bb[0]:bb[2],:]
+        aligned = misc.imresize(cropped, (image_size, image_size), interp='bilinear')
+        prewhitened = facenet.prewhiten(aligned)
+        img_list.append(prewhitened)
+        images = np.stack(img_list)
+        images_list.append(images)
+        img_list.clear()
+    return images_list,box_list
+
 
                 
 # def load_and_align_data(image_paths, image_size, margin, gpu_memory_fraction):

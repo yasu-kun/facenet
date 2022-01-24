@@ -26,6 +26,7 @@ def mask_image(img, model):
     net.setInput(blob)
     detections = net.forward()
     
+    box_list = []
     # loop over the detections
     for i in range(0, detections.shape[2]):
         # extract the confidence (i.e., probability) associated with
@@ -38,7 +39,7 @@ def mask_image(img, model):
             # compute the (x, y)-coordinates of the bounding box for
             # the object
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-            return box
+            box_list.append(box)
 
             (startX, startY, endX, endY) = box.astype("int")
             # ensure the bounding boxes fall within the dimensions of
@@ -64,6 +65,8 @@ def mask_image(img, model):
             #harf_box = 
             #return harf_box if mask > withoutMask else return box
             color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
+
+    return box_list
 
 	
 if __name__ == "__main__":
